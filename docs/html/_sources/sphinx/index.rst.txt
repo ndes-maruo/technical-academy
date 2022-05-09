@@ -1,4 +1,4 @@
-Sphinxインストール
+Sphinx
 ==================
 
 https://sphinx-users.jp/gettingstarted/install_windows.html
@@ -76,3 +76,9 @@ https://sphinx-users.jp/gettingstarted/install_windows.html
   make html
 
  %USERPROFILE%\\AppData\\Local\\Programs\\Python\\Python310\\_build\\html\\index.htmlにドキュメントが生成される
+
+5. 書き方
+----------------------
+ 以下を参照 (外部サイト)
+
+ https://planset-study-sphinx.readthedocs.io/ja/latest/04.html

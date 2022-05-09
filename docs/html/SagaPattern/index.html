@@ -49,15 +49,15 @@
 <p>エラーが発生した場合、単純なロールバックはできず、代わりに一連のトランザクションで実行した操作の逆向きにした取り消し操作としての別のトランザクションによって元の状態に戻す。これを補償トランザクション（Compensation Transaction）という。</p>
 <p>下記を例とした場合、</p>
 <blockquote>
-<div><img alt="../_images/transaction1.png" src="../_images/transaction1.png" />
+<div><img alt="../images/transaction1.png" src="../images/transaction1.png" />
 </div></blockquote>
 <p>すべてのローカルトランザクションが成功すると、Saga Aも成功する。</p>
 <blockquote>
-<div><img alt="../_images/transaction2.png" src="../_images/transaction2.png" />
+<div><img alt="../images/transaction2.png" src="../images/transaction2.png" />
 </div></blockquote>
 <p>Transaction Zが失敗した場合、</p>
 <blockquote>
-<div><img alt="../_images/transaction3.png" src="../_images/transaction3.png" />
+<div><img alt="../images/transaction3.png" src="../images/transaction3.png" />
 </div></blockquote>
 <p>補償トランザクション（Compensation Transaction）をすでにコミット済みのTransaction Y、Transaction Xに対して実行した上で、Saga Aとしては失敗となる。</p>
 <p><strong>疑問：補償トランザクションの中でエラーが発生した場合などはどのように考慮されるのか？</strong></p>
@@ -75,7 +75,7 @@
 <li><p>Choreography</p></li>
 </ol>
 <blockquote>
-<div><img alt="../_images/Choreography.png" src="../_images/Choreography.png" />
+<div><img alt="../images/Choreography.png" src="../images/Choreography.png" />
 <p>Choreography では、各ローカルトランザクション（Service X、Y、Z）は、自身のサービスが呼び出されたタイミング（または処理完了したタイミング？）で、 他のローカルトランザクションのトリガーとなるイベントを発行する。（イベントチェインのようなもの？）
 各ローカルトランザクションは自身の発行するイベントおよび自身のトリガーとなるイベントに対してが責務の範囲となる。</p>
 </div></blockquote>
@@ -83,7 +83,7 @@
 <li><p>Orchestration</p></li>
 </ol>
 <blockquote>
-<div><img alt="../_images/Orchestration.png" src="../_images/Orchestration.png" />
+<div><img alt="../images/Orchestration.png" src="../images/Orchestration.png" />
 <p>Orchestration では、Service Aで生成したオーケストレーターが、実行するローカルトランザクションコマンドを各サービス（Service X、Y、Z）に一斉に通知し、それぞれの結果を集めてOrchestratorにReplyする。</p>
 </div></blockquote>
 </div></blockquote>

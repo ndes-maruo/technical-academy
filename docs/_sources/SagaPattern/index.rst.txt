@@ -17,15 +17,15 @@ Sagaパターンの説明
  
  下記を例とした場合、
  
-   .. image:: images/transaction1.png
+   .. image:: ./images/transaction1.png
  
  すべてのローカルトランザクションが成功すると、Saga Aも成功する。
  
-   .. image:: images/transaction2.png
+   .. image:: ./images/transaction2.png
  
  Transaction Zが失敗した場合、
  
-    .. image:: images/transaction3.png
+    .. image:: ./images/transaction3.png
  
  補償トランザクション（Compensation Transaction）をすでにコミット済みのTransaction Y、Transaction Xに対して実行した上で、Saga Aとしては失敗となる。
  
@@ -42,7 +42,7 @@ Sagaパターンの種類
 
  1. Choreography
  
-  .. image:: images/Choreography.png
+  .. image:: ./images/Choreography.png
   
   Choreography では、各ローカルトランザクション（Service X、Y、Z）は、自身のサービスが呼び出されたタイミング（または処理完了したタイミング？）で、 他のローカルトランザクションのトリガーとなるイベントを発行する。（イベントチェインのようなもの？）
   各ローカルトランザクションは自身の発行するイベントおよび自身のトリガーとなるイベントに対してが責務の範囲となる。
@@ -50,7 +50,7 @@ Sagaパターンの種類
  
  2. Orchestration
  
-  .. image:: images/Orchestration.png
+  .. image:: ./images/Orchestration.png
  
   Orchestration では、Service Aで生成したオーケストレーターが、実行するローカルトランザクションコマンドを各サービス（Service X、Y、Z）に一斉に通知し、それぞれの結果を集めてOrchestratorにReplyする。
   

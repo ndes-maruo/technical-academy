@@ -13,17 +13,17 @@ https://sphinx-users.jp/gettingstarted/install_windows.html
 
  Download Python 3.10.4をクリックしてダウンロード
 
- .. image:: images/python.png
+ .. image:: ./images/python.png
    :scale: 40%
 
  ダウンロードしたpython-3.10.4-amd64.exeを起動
 
  Install Now -> Close
 
- .. image:: images/python_install1.png
+ .. image:: ./images/python_install1.png
    :scale: 40%
 
- .. image:: images/python_install2.png
+ .. image:: ./images/python_install2.png
    :scale: 40%
 
  Closeボタン押下

@@ -1,0 +1,211 @@
+
+<!DOCTYPE html>
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Sagaパターン &#8212; TechDoc  ドキュメント</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/translations.js"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="検索" href="../search.html" />
+    <link rel="prev" title="Welcome to TechDoc&#39;s documentation!" href="../index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="saga">
+<h1>Sagaパターン<a class="headerlink" href="#saga" title="このヘッドラインへのパーマリンク">¶</a></h1>
+<section id="id1">
+<h2>概要<a class="headerlink" href="#id1" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<blockquote>
+<div><p>マイクロサービスでは、移行する際にシステム移行に伴うDBの分解が発生した場合に、不具合となる危険性がある為、分散トランザクションは推奨されていない。</p>
+<p>そのため、マイクロサービスで複数のリソースの結果整合性を利用する方法として、Sagaパターンがある。</p>
+</div></blockquote>
+</section>
+<section id="id2">
+<h2>Sagaパターンの説明<a class="headerlink" href="#id2" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<blockquote>
+<div><p>Sagaパターンとは、複数のサービスにまたがるビジネストランザクションをSagaとして実装する。Sagaは一連のローカルトランザクションのこと。リソースを長時間ロックすることがないよう設計されたアーキテクチャパターンである。</p>
+<p>エラーが発生した場合、単純なロールバックはできず、代わりに一連のトランザクションで実行した操作の逆向きにした取り消し操作としての別のトランザクションによって元の状態に戻す。これを補償トランザクション（Compensation Transaction）という。</p>
+<p>下記を例とした場合、</p>
+<blockquote>
+<div><img alt="../_images/transaction1.png" src="../_images/transaction1.png" />
+</div></blockquote>
+<p>すべてのローカルトランザクションが成功すると、Saga Aも成功する。</p>
+<blockquote>
+<div><img alt="../_images/transaction2.png" src="../_images/transaction2.png" />
+</div></blockquote>
+<p>Transaction Zが失敗した場合、</p>
+<blockquote>
+<div><img alt="../_images/transaction3.png" src="../_images/transaction3.png" />
+</div></blockquote>
+<p>補償トランザクション（Compensation Transaction）をすでにコミット済みのTransaction Y、Transaction Xに対して実行した上で、Saga Aとしては失敗となる。</p>
+<p><strong>疑問：補償トランザクションの中でエラーが発生した場合などはどのように考慮されるのか？</strong></p>
+</div></blockquote>
+</section>
+<section id="id3">
+<h2>Sagaパターンの種類<a class="headerlink" href="#id3" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<blockquote>
+<div><p>Sagaの実現方法として2つの方法がある。</p>
+<ul class="simple">
+<li><p>Choreography（振り付け）</p></li>
+<li><p>Orchestration（オーケストレーション）</p></li>
+</ul>
+<ol class="arabic simple">
+<li><p>Choreography</p></li>
+</ol>
+<blockquote>
+<div><img alt="../_images/Choreography.png" src="../_images/Choreography.png" />
+<p>Choreography では、各ローカルトランザクション（Service X、Y、Z）は、自身のサービスが呼び出されたタイミング（または処理完了したタイミング？）で、 他のローカルトランザクションのトリガーとなるイベントを発行する。（イベントチェインのようなもの？）
+各ローカルトランザクションは自身の発行するイベントおよび自身のトリガーとなるイベントに対してが責務の範囲となる。</p>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><p>Orchestration</p></li>
+</ol>
+<blockquote>
+<div><img alt="../_images/Orchestration.png" src="../_images/Orchestration.png" />
+<p>Orchestration では、Service Aで生成したオーケストレーターが、実行するローカルトランザクションコマンドを各サービス（Service X、Y、Z）に一斉に通知し、それぞれの結果を集めてOrchestratorにReplyする。</p>
+</div></blockquote>
+</div></blockquote>
+</section>
+<section id="id4">
+<h2>長所・短所<a class="headerlink" href="#id4" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<blockquote>
+<div><ul class="simple">
+<li><p>Choreography</p></li>
+</ul>
+<blockquote>
+<div><p>自身のトリガーとなるイベントに対しての責務が大きく、複数のサービスが循環参照するようなケースだとイベントの扱いが非常に難しくなるが、シンプルなSagaの場合は十分に有効な方法である。</p>
+<ul class="simple">
+<li><p>メリット</p></li>
+</ul>
+<blockquote>
+<div><p>一元的な制御モジュールが不要。責任が各サービスに分散されるため単一障害点がない。</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>デメリット</p></li>
+</ul>
+<blockquote>
+<div><p>各サービスがどのイベントを待ち受けているかの追跡が難しく、新しいサービスを追加する際に実装が煩雑になりがち。
+各サービスが他のサービスのイベントを意識する必要があるためオーケストレーションと比較し密結合になる</p>
+</div></blockquote>
+</div></blockquote>
+<ul class="simple">
+<li><p>Orchestration</p></li>
+</ul>
+<blockquote>
+<div><p>関係するサービスのインターフェースについて管理する必要がある。各サービス間で互いのイベントを気にする必要がなく、処理としてはとてもシンプルになる。Sagaがオーケストレーターに閉じるため、Saga外部のことを気にする必要がなくなる。ただし、Saga間の独立性については考慮が必要。</p>
+<ul class="simple">
+<li><p>メリット</p></li>
+</ul>
+<blockquote>
+<div><p>各サービスが待ち受けているイベントの追跡が容易で、新しいサービスを追加しやすい。
+各サービスはコーディネータからのイベントのみを意識するため、各サービスはコレオグラフィと比較して疎結合になる。</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>デメリット</p></li>
+</ul>
+<blockquote>
+<div><p>コーディネータの追加実装が必要。
+コーディネータの障害という単一障害点の発生。</p>
+</div></blockquote>
+</div></blockquote>
+</div></blockquote>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">TechDoc</a></h1>
+
+
+
+
+
+
+
+
+<h3>ナビゲーション</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Sagaパターン</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">概要</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">Sagaパターンの説明</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">Sagaパターンの種類</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id4">長所・短所</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../index.html" title="前の章へ">Welcome to TechDoc's documentation!</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">クイック検索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="検索" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022, maruo.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.5.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/SagaPattern/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

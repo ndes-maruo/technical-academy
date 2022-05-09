@@ -1,4 +1,4 @@
-Sphynxインストール
+Sphinxインストール
 ==================
 
 https://sphinx-users.jp/gettingstarted/install_windows.html

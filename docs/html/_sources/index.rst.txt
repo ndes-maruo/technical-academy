@@ -12,7 +12,9 @@ Welcome to TechDoc's documentation!
 
    sphinx/index
    SagaPattern/index
-
+   Kafka/index
+   Debezium/index
+   
 Indices and tables
 ==================
 

@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Kafka &#8212; TechDoc  ドキュメント</title>
+    <title>Apache Kafka &#8212; TechDoc  ドキュメント</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -34,13 +34,143 @@
 
           <div class="body" role="main">
             
-  <section id="kafka">
-<h1>Kafka<a class="headerlink" href="#kafka" title="このヘッドラインへのパーマリンク">¶</a></h1>
+  <section id="apache-kafka">
+<h1>Apache Kafka<a class="headerlink" href="#apache-kafka" title="このヘッドラインへのパーマリンク">¶</a></h1>
 <section id="id1">
-<h2>1．Kafkaとは<a class="headerlink" href="#id1" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<h2>1．Apache Kafkaとは<a class="headerlink" href="#id1" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<p>Apache Kafka（以降、Kafka）はスケーラビリティに優れた分散メッセージキューである。メッセージキューとは、システム間のデータの受け渡しを仲介し、データを一時的に保持（キューイング）するミドルウェアのこと。メッセージキューを導入することには、以下のような利点がある。</p>
+<ul class="simple">
+<li><p>メッセージキューを介してシステム間の通信を行うことで、システム間の接続経路を簡略化し、システムを疎結合に保つ。</p></li>
+<li><p>システム間の通信を非同期化することで、データ流量の急激な増加によるシステムの負荷上昇を抑制する。</p></li>
+<li><p>Kafkaは処理性能を重視したメッセージキューであり、複数台のマシンでクラスタを構成して分散処理を行うことで、高いスループットを発揮する。後からクラスタにマシンを追加することで、処理性能とデータ保持容量をスケールアウトすることもできる。また、Kafkaはクラスタ内でデータを複製するため、一部のマシンに障害が発生してもデータを失うことなく処理を継続できる。</p></li>
+</ul>
+</section>
+<section id="kafka">
+<h2>2．Kafkaのユースケース<a class="headerlink" href="#kafka" title="このヘッドラインへのパーマリンク">¶</a></h2>
 <blockquote>
-<div><p>Under constraction</p>
+<div><ul class="simple">
+<li><p>データハブの構築</p></li>
+</ul>
+<blockquote>
+<div><p>複雑なシステムをサービス単位で分割して疎結合に保つことで、迅速な機能追加や不良修正が可能なマイクロサービスが多くの企業で導入されている。しかし、多数のサービス間で直接データを受け渡そうとすると接続経路が複雑になり、またデータ流量の急激な増加により、サービスの負荷が急増することがある。Kafkaはこのようなサービス間で、大量のデータを受け渡すためのハブとして活用されている。</p>
+<a class="reference internal image-reference" href="../_images/datahub.png"><img alt="../_images/datahub.png" src="../_images/datahub.png" style="width: 453.0px; height: 350.0px;" /></a>
 </div></blockquote>
+<ul class="simple">
+<li><p>ストリーミングアプリケーションの構築</p></li>
+</ul>
+<blockquote>
+<div><p>Webサービスやネットワークに接続されたデバイスは、大量のデータをリアルタイムに生成する。このようなデータをリアルタイムに処理するストリーミングアプリケーションにおいて、データ量の急激な増加に対応するためのキューとしてKafkaが活用されている。</p>
+<a class="reference internal image-reference" href="../_images/streaming.png"><img alt="../_images/streaming.png" src="../_images/streaming.png" style="width: 535.0px; height: 254.0px;" /></a>
+</div></blockquote>
+</div></blockquote>
+</section>
+<section id="id2">
+<h2>3.システム構成<a class="headerlink" href="#id2" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<p>Kafkaの全体アーキテクチャを以下に示す。</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="../_images/env.png"><img alt="../_images/env.png" src="../_images/env.png" style="width: 749.0px; height: 355.0px;" /></a>
+</div></blockquote>
+<p>Kafkaは複数のBrokerでクラスタを構成し、このクラスタ上にTopicと呼ばれる分散キューを構成する。Kafkaのメッセージはキーバリュー形式であり、Recordと呼ぶ。1つのTopicは、複数のBrokerに分散配置されたPartitionで構成されており、このPartition単位でRecordの書き込み/読み込みを行うことで、1つのTopicに対する並列書き込み/読み出しを実現する。Broker同士はクラスタコーディネータであるZooKeeperを使用して連携し、Brokerの１つがリーダーとなりBrokerクラスタを管理する。</p>
+<p>KafkaはPub/Subメッセージングモデルを採用している。また、Kafkaは書き込み/読み出し性能を重視しており、Topicに対する書き込み/読み出しには、MQTTなどの標準プロトコルではなく、独自プロトコルを使用する。書き込み側のアプリケーション（Publisher）はProducerと呼ばれる書き込み用ライブラリを通じて、BrokerのTopicにRecordを書き込む。読み出し側のアプリケーション（Subscriber）はConsumerと呼ばれる読み出し用ライブラリを通じて、Recordを取り出す。Kafka本体に含まれているProducer/ConsumerライブラリはJava製だが、他にもサードパーティからPythonやC++など様々な言語製のライブラリが提供されており、様々なアプリケーションや機器に組み込むことができる。</p>
+<p>Topicに書き込んだデータはBrokerのディスクに保存され、読み出されてもすぐには削除されない。そのため、同じTopicのデータを複数のアプリケーションから読み出すことができる。一定期間が経過したRecordや、Partitionの最大容量を超えた分のRecordは自動的に削除される。また、Partition 内のRecordはBroker間で複製されるため、一部のBrokerノードに障害が発生してもRecordが失われにくい仕組みになっている。</p>
+</section>
+<section id="id3">
+<h2>4.データ管理<a class="headerlink" href="#id3" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<p>Kafkaの論理/物理データ構造とその管理方法について説明する。</p>
+<section id="id4">
+<h3>論理データ構造とデータ複製<a class="headerlink" href="#id4" title="このヘッドラインへのパーマリンク">¶</a></h3>
+<section id="topicpartitionreplica">
+<h4>Topic、Partition、Replica<a class="headerlink" href="#topicpartitionreplica" title="このヘッドラインへのパーマリンク">¶</a></h4>
+<p>1つのTopicは複数のPartitionで構成されており、各PartitionはBroker間で複製された複数のReplicaで構成される。各Partitionには1個のLeader Replicaと0個以上のFollower Replicaが存在し、Leader Replicaに書き込まれたRecordはFollower Replicaに複製される。</p>
+<p>この複製方法はLeader/Follower型と呼ばれ、Replicaの複製数（1個のLeaderと0個以上のFollowerの合計数）をReplication Factorと呼ぶ。各Leader ReplicaはBrokerに均等に割り当てられ、Partitionへの書き込み/読み出しはLeader Replicaにのみ行う。Brokerノードの障害などでLeader Replicaが使用できなくなった際は、いずれかのFollower ReplicaがLeader Replicaに昇格する。</p>
+<p>TopicのPartition数とReplication FactorはTopicの作成時に指定する。Brokerノード3台で1 Topic、3 Partition、Replication Factor = 3の場合の、データ構造の例を以下に示す。</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="../_images/structure.png"><img alt="../_images/structure.png" src="../_images/structure.png" style="width: 784.0px; height: 454.0px;" /></a>
+</div></blockquote>
+</section>
+<section id="in-sync-replica-isr">
+<h4>In Sync Replica（ISR）<a class="headerlink" href="#in-sync-replica-isr" title="このヘッドラインへのパーマリンク">¶</a></h4>
+<p>Brokerやネットワークの問題により、LeaderからFollowerへの複製が遅延または停止して、LeaderとFollowerの内容が同期しなくなることがある。Kafkaのデフォルトの設定では、複製が追い付いていない状態が10秒間続いたFollowerは同期していないとみなされる。Brokerは常に「同期しているFollowerのリスト」を追跡しており、同期しているReplicaをIn Sync Replica（ISR）と呼ぶ。</p>
+<p>ISRの最小数はTopicごとに設定することが可能で、現在のISR 数はPartitionごとに追跡される。あるPartitionのISR数が最小数を下回ると、そのPartition（のLeader Replica）はProducerから書き込み出来なくなる。ISR数が最小数まで回復すると、そのPartitionは再びProducerから書き込み出来るようになる。ISRの最小数まで書き込まれたRecordはコミットされたものとみなされ、ConsumerはコミットされたRecordのみを取得できる。</p>
+</section>
+</section>
+<section id="id5">
+<h3>物理データ構造とデータ保存方法<a class="headerlink" href="#id5" title="このヘッドラインへのパーマリンク">¶</a></h3>
+<section id="logsegment">
+<h4>Log、Segment<a class="headerlink" href="#logsegment" title="このヘッドラインへのパーマリンク">¶</a></h4>
+<p>BrokerはTopicに書き込まれたRecordをファイルに保存することで永続化する。BrokerはReplica ごとにデータディレクトリを作成して、Recordは各ディレクトリ内のSegmentというファイルに書き込む。このSegmentファイルの集合を、KafkaではLogと呼んでいる。</p>
+<p>通常、Brokerノードは複数台のディスクを搭載しており、各ディスクに対してラウンドロビン方式でReplicaのデータディレクトリを割り当てる。そのため、最低でもディスク台数分のReplicaがないとディスクを使い切れない（Replica数 = 全TopicのPartition数 * Replication Factor）。また、Partition間のデータのバランスが悪いと、ディスク間に負荷の不均衡が発生してしまう。</p>
+</section>
+<section id="segment">
+<h4>Segmentファイルのフラッシュ<a class="headerlink" href="#segment" title="このヘッドラインへのパーマリンク">¶</a></h4>
+<p>Segmentファイルはファイルシステムが管理している。Linuxでは、ファイルシステムに書き込まれたデータは、ディスクに書き出されるまでメモリ上のページキャッシュに保持される。デフォルト設定では、KafkaはOSに対してディスクへの書き込み指示は行わず、OSがバックグラウンドでページキャッシュ上のデータを定期的にディスクへフラッシュするのに任せる。なお、フラッシュ後もメモリに余裕があれば、データはページキャッシュ上に残り続けるため、高速に読み出すことができる。</p>
+<p>Brokerの設定により、一定期間または一定量のデータが書き込まれた際に、データを強制的にフラッシュすることも可能である。ただし、KafkaはBrokerノードが故障した際は別のBrokerノードのReplicaからデータを回復するため、ディスクへのデータ同期を必要とはしていない（他のノードのページキャッシュ上に複製されていればよいという考え方）。そのため、デフォルトのフラッシュ設定を使用することを推奨されている。</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="../_images/flush.png"><img alt="../_images/flush.png" src="../_images/flush.png" style="width: 410.0px; height: 304.0px;" /></a>
+</div></blockquote>
+</section>
+<section id="id6">
+<h4>Kafkaのツール<a class="headerlink" href="#id6" title="このヘッドラインへのパーマリンク">¶</a></h4>
+<p>Kafkaに付属する主なツールについて、その概要を簡単に説明します。詳細についてはリンク先の公式ドキュメントを参照してください。</p>
+<ul class="simple">
+<li><p>Kafka Connect</p></li>
+</ul>
+<blockquote>
+<div><p>Kafka Connectを使用することで、DBなどの外部システムとKafka間でデータを書き込み/読み出しするコネクタを定義できる。Offsetの永続化など、Kafkaと外部システムを接続する際に必要な処理を簡素化してくれる。</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Kafka Streams</p></li>
+</ul>
+<blockquote>
+<div><p>Kafka Streamsは、Kafkaに格納されたデータを処理および分析するためのクライアントライブラリである。ウィンドウ処理などが可能であり、Spark StreamingやFlinkなどの並列分散処理フレームワークに相当する。</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Miller Maker</p></li>
+</ul>
+<blockquote>
+<div><p>Miller MakerはKafkaクラスタ間のミラーリングを行う。複数のデータセンタにクラスタを用意することで、データセンタ間でのバックアップが可能となる。Miller Makerの実体は一方のクラスタからConsumeしたRecordを他方のクラスタにProduceするクライアントアプリケーションであり、ミラーリングは非同期に行われる。そのため、フォールトトレランス機能としての使用は意図されていない。</p>
+</div></blockquote>
+</section>
+<section id="id7">
+<h4>Kafkaの機能<a class="headerlink" href="#id7" title="このヘッドラインへのパーマリンク">¶</a></h4>
+<p>Kafkaの主な機能について記載する。</p>
+<ul class="simple">
+<li><p>セキュリティ</p></li>
+</ul>
+<blockquote>
+<div><p>KafkaはSSL/SASLを用いた接続認証、通信データの暗号化、クライアントによる読み取り/書き込み操作の認証などを提供している。</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>リソース割り当て制限（Quotas）</p></li>
+</ul>
+<blockquote>
+<div><p>Quotasによりクライアントが使用するBrokerリソース（ネットワーク帯域幅およびネットワーク・ディスクI/OスレッドのCPU要求レート）を制御できる。</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Logコンパクション</p></li>
+</ul>
+<blockquote>
+<div><p>Logコンパクションを使用することで、各キーの最新Recordのみを保持できる（一定期間が過ぎたRecordを削除するのではなく、同じキーの最新Record以外を削除する）。この保存ポリシーはTopicごとに設定可能である。</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>モニタリング</p></li>
+</ul>
+<blockquote>
+<div><p>KafkaはJMX (Java Management Extensions) により性能情報などのメトリックを公開している。JDK付属のjconsoleや、JMXに対応した監視ソフトウェアを使用することで、これらのメトリックを収集できる。</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Recordの重複排除、トランザクション、エンドツーエンドのExactly-once保障</p></li>
+</ul>
+<blockquote>
+<div><p>Kafka 0.11では以下の機能が追加された。</p>
+<ul class="simple">
+<li><p>Producerは送信したRecordがコミットされたことを示す応答を、Brokerから受信できなかった場合にRecordを再送するため、Logに同じRecordが書き込まれる可能性がありる。Kafka 0.11では、Producerによって送信されるシーケンス番号を使用することで、この重複を排除する機能が追加された。</p></li>
+<li><p>Kafka 0.11では、Producer/Consumerは複数のTopicにまたがるトランザクション機能が追加された。トランザクションを使用することで、あるTopicから読み出したRecordを変換処理して別のTopicに書き込む、といった一連の処理をアトミックに実行できる。</p></li>
+<li><p>Kafkaはデフォルト設定において、At least once（データが重複する可能性があるが、欠損はしない）のRecord配信を保障している。Kafka 0.11では、Recordの重複排除やトランザクションなどの設定を行い、Kafka StreamsとKafka Connectを組み合わせることで、エンドツーエンドのExactly-onceのRecord配信（ProducerのRecord送信から、変換処理、外部DBへの出力までをRecordの欠損や重複なしに実行）が可能になった。</p></li>
+</ul>
+</div></blockquote>
+</section>
+</section>
 </section>
 </section>
 
@@ -63,10 +193,13 @@
 <h3>ナビゲーション</h3>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../sphinx/index.html">Sphynxインストール</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sphinx/index.html">Sphinx</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../SagaPattern/index.html">Sagaパターン</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Kafka</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#id1">1．Kafkaとは</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Apache Kafka</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">1．Apache Kafkaとは</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kafka">2．Kafkaのユースケース</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">3.システム構成</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">4.データ管理</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../Debezium/index.html">Debezium</a></li>

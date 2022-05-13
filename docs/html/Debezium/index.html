@@ -38,7 +38,115 @@
 <section id="id1">
 <h2>1．Debeziumとは<a class="headerlink" href="#id1" title="このヘッドラインへのパーマリンク">¶</a></h2>
 <blockquote>
-<div><p>Under constraction</p>
+<div><p>DebeziumはDBに対するデータ操作をキャプチャしてイベントストリームに変換してくれる分散プラットフォームであり、2016年初頭から、RedHat主導で開発されている。もともと、マイクロサービスを実装するためのソリューションとして開発されたもののようだが、マイクロサービスに関係なく使える。Apache Kafkaをベースに実装されており、Kafka Connectベースのコネクタを利用してDBをモニターすることができる。 既存DBに対するデータ操作をKafkaのメッセージに変換することができるため、レガシーシステムなどでアプリケーションに手を入れたくないがデータだけ抜き出してリアルタイム処理したいなど、別システムにデータを流用したいという場合に便利なソフトウェアである。 また、イベントログはKafkaが保持してくれているため、データを利用する側(consumer)が止まってもイベントログが失われることはなく、consumerを復旧させれば処理を再開することが可能である。MySQL、MongoDB、PostgreSQL、Oracle、SQL Serverに対応している。</p>
+<a class="reference internal image-reference" href="../_images/debezium.png"><img alt="../_images/debezium.png" src="../_images/debezium.png" style="width: 768.0px; height: 392.0px;" /></a>
+</div></blockquote>
+</section>
+<section id="id2">
+<h2>2. 特徴<a class="headerlink" href="#id2" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<blockquote>
+<div><p>DBMSは、変更内容をトランザクションログに記録していく。MySQLの場合は、バイナリログである。それをKafka Connectサービスがコネクタを使用して監視する。変更を検知すると、テーブル単位で作成されたKafkaトピックに、変更内容を「イベント」としてJSONでシリアライズして記録する。アプリケーションはKafkaのコンシューマなどを使ってKafkaメッセージブローカーに接続し、トピックを監視する。変更イベントが到着したら受信して、アプリケーションの他の処理に利用する。</p>
+</div></blockquote>
+</section>
+<section id="rdb-debezium-kafka">
+<h2>3. RDB＋Debezium＋Kafka<a class="headerlink" href="#rdb-debezium-kafka" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<blockquote>
+<div><p>マイクロサービスで複数のサービスにまたがってデータ更新する際は、各サービスにおいてデータソース（RDB）の更新と、その更新内容を他のサービスに通知するという処理が必要である。
+このデータ更新と他サービスへの通知に結果整合性を持たせる１つの方法は、DBへの更新データをキャプチャするための分散プラットフォームであるDebeziumを利用して、Transactional Outboxパターンを構築することである。</p>
+<p>Transactional Outboxパターンでは、RDBに業務データのテーブルと、通知用のoutboxテーブルを用意して、両方のテーブルを1つのトランザクションでアトミックに更新する。Debeziumはoutboxテーブルの変更を検知して、それをKafkaのTopicに送信・通知します。つまり、アプリはRDBのみを更新し、メッセージ送信はDebeziumがRDBの変更を捕捉して行う事で、結果整合性を確保する仕組みである。</p>
+<a class="reference internal image-reference" href="../_images/outbox.png"><img alt="../_images/outbox.png" src="../_images/outbox.png" style="width: 675.0px; height: 236.0px;" /></a>
+</div></blockquote>
+</section>
+<section id="id3">
+<h2>4．サンプル構築<a class="headerlink" href="#id3" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<blockquote>
+<div><p>実際に PostgreSQL＋Debezium＋Kafkaを用いたSagaパターンのサンプルを構築して、動作を検証する。</p>
+<p>この構成の構築例がGitHubに公開されているため、それを利用する。
+<a class="reference external" href="https://github.com/debezium/debezium-examples/tree/master/saga">https://github.com/debezium/debezium-examples/tree/master/saga</a></p>
+<p>サンプルの処理内容としてはフロントエンドとしてOrderサービスがクレジット支払いの注文を受け付け、バックエンドサービスであるCustomerサービスとPaymentサービスとでそれぞれユーザ情報の更新と決済情報の更新をする、というものある。</p>
+<a class="reference internal image-reference" href="../_images/sample.png"><img alt="../_images/sample.png" src="../_images/sample.png" style="width: 572.0px; height: 310.0px;" /></a>
+<p>出典：<a class="reference external" href="https://github.com/debezium/debezium-examples/blob/master/saga/solution-overview.png">https://github.com/debezium/debezium-examples/blob/master/saga/solution-overview.png</a></p>
+<p>環境構築の前提条件はmavenとdocker-composeがインストールされていることである。</p>
+<p>この例の中で重要な要素となるのは２つある。１つはJavaで実装されたビジネスロジック側のライブラリで、もう１つはDebeziumのKafka Connectorである。</p>
+</div></blockquote>
+<ol class="arabic simple">
+<li><p>debezium-quarkus-outboxライブラリ</p></li>
+</ol>
+<blockquote>
+<div><p>Javaで実装されたビジネスロジック側では、debezium-quarkus-outboxというライブラリを使用している。このライブラリは、他サービスへの通知をする機能と、通知を受け取る機能を提供している。
+他サービスへの通知をする機能として、監視対象のテーブル（業務データのテーブル）に対してCUD(Create/Update/Delete)操作が加えられた際に、その操作内容をJavaプログラムから指定されたテーブルであるoutboxeventテーブルにも同時に書き込む際の処理が実装されている。
+加えて他サービスからの通知をKafka経由で受け取る機能も実装されており、このサンプルでは、バックエンドサービスである、決済情報の記録を模擬するPaymentサービスと、顧客の与信情報の記録を模擬するCreditサービスからそれぞれレスポンスを受け取っている。</p>
+<p>Debezium Documentation&gt;Integrations&gt;Outbox Quarkus Extension:
+<a class="reference external" href="https://debezium.io/documentation/reference/integrations/outbox.html">https://debezium.io/documentation/reference/integrations/outbox.html</a></p>
+<p>order-service/src/main/resources/application.propertiesがこのライブラリの設定ファイルである。オプション内容はリンク先で確認できる。
+<a class="reference external" href="https://debezium.io/documentation/reference/integrations/outbox.html#_configuration">https://debezium.io/documentation/reference/integrations/outbox.html#_configuration</a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">order</span><span class="o">-</span><span class="n">service</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">resources</span><span class="o">/</span><span class="n">application</span><span class="o">.</span><span class="n">properties</span>
+
+<span class="n">quarkus</span><span class="o">.</span><span class="n">datasource</span><span class="o">.</span><span class="n">db</span><span class="o">-</span><span class="n">kind</span><span class="o">=</span><span class="n">postgresql</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">datasource</span><span class="o">.</span><span class="n">jdbc</span><span class="o">.</span><span class="n">url</span><span class="o">=</span><span class="n">jdbc</span><span class="p">:</span><span class="n">postgresql</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="p">:</span><span class="mi">5432</span><span class="o">/</span><span class="n">orderdb</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">datasource</span><span class="o">.</span><span class="n">username</span><span class="o">=</span><span class="n">orderuser</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">datasource</span><span class="o">.</span><span class="n">password</span><span class="o">=</span><span class="n">orderpw</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">hibernate</span><span class="o">-</span><span class="n">orm</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">sql</span><span class="o">=</span><span class="n">true</span>
+
+<span class="n">quarkus</span><span class="o">.</span><span class="n">hibernate</span><span class="o">-</span><span class="n">orm</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">generation</span><span class="o">=</span><span class="n">drop</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">create</span>
+<span class="c1"># quarkus.hibernate-orm.database.generation=update</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">hibernate</span><span class="o">-</span><span class="n">orm</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">default</span><span class="o">-</span><span class="n">schema</span><span class="o">=</span><span class="n">purchaseorder</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">level</span><span class="o">=</span><span class="n">INFO</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">min</span><span class="o">-</span><span class="n">level</span><span class="o">=</span><span class="n">INFO</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">enable</span><span class="o">=</span><span class="n">true</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">format</span><span class="o">=%</span><span class="n">d</span><span class="p">{</span><span class="n">HH</span><span class="p">:</span><span class="n">mm</span><span class="p">:</span><span class="n">ss</span><span class="p">}</span> <span class="o">%-</span><span class="mi">5</span><span class="n">p</span> <span class="p">[</span><span class="o">%</span><span class="n">c</span><span class="p">]</span> <span class="o">%</span><span class="n">s</span><span class="o">%</span><span class="n">e</span><span class="o">%</span><span class="n">n</span>
+
+<span class="n">quarkus</span><span class="o">.</span><span class="n">debezium</span><span class="o">-</span><span class="n">outbox</span><span class="o">.</span><span class="n">remove</span><span class="o">-</span><span class="n">after</span><span class="o">-</span><span class="n">insert</span><span class="o">=</span><span class="n">false</span>
+
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">paymentresponse</span><span class="o">.</span><span class="n">connector</span><span class="o">=</span><span class="n">smallrye</span><span class="o">-</span><span class="n">kafka</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">paymentresponse</span><span class="o">.</span><span class="n">topic</span><span class="o">=</span><span class="n">payment</span><span class="o">.</span><span class="n">response</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">paymentresponse</span><span class="o">.</span><span class="n">bootstrap</span><span class="o">.</span><span class="n">servers</span><span class="o">=</span><span class="n">localhost</span><span class="p">:</span><span class="mi">9092</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">paymentresponse</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">id</span><span class="o">=</span><span class="n">order</span><span class="o">-</span><span class="n">service</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">paymentresponse</span><span class="o">.</span><span class="n">key</span><span class="o">.</span><span class="n">deserializer</span><span class="o">=</span><span class="n">org</span><span class="o">.</span><span class="n">apache</span><span class="o">.</span><span class="n">kafka</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">StringDeserializer</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">paymentresponse</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">deserializer</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">debezium</span><span class="o">.</span><span class="n">examples</span><span class="o">.</span><span class="n">saga</span><span class="o">.</span><span class="n">order</span><span class="o">.</span><span class="n">facade</span><span class="o">.</span><span class="n">serdes</span><span class="o">.</span><span class="n">PaymentDeserializer</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">paymentresponse</span><span class="o">.</span><span class="n">interceptor</span><span class="o">.</span><span class="n">classes</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">opentracing</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">kafka</span><span class="o">.</span><span class="n">TracingConsumerInterceptor</span>
+
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">creditresponse</span><span class="o">.</span><span class="n">connector</span><span class="o">=</span><span class="n">smallrye</span><span class="o">-</span><span class="n">kafka</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">creditresponse</span><span class="o">.</span><span class="n">topic</span><span class="o">=</span><span class="n">credit</span><span class="o">-</span><span class="n">approval</span><span class="o">.</span><span class="n">response</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">creditresponse</span><span class="o">.</span><span class="n">bootstrap</span><span class="o">.</span><span class="n">servers</span><span class="o">=</span><span class="n">localhost</span><span class="p">:</span><span class="mi">9092</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">creditresponse</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">id</span><span class="o">=</span><span class="n">order</span><span class="o">-</span><span class="n">service</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">creditresponse</span><span class="o">.</span><span class="n">key</span><span class="o">.</span><span class="n">deserializer</span><span class="o">=</span><span class="n">org</span><span class="o">.</span><span class="n">apache</span><span class="o">.</span><span class="n">kafka</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">StringDeserializer</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">creditresponse</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">deserializer</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">debezium</span><span class="o">.</span><span class="n">examples</span><span class="o">.</span><span class="n">saga</span><span class="o">.</span><span class="n">order</span><span class="o">.</span><span class="n">facade</span><span class="o">.</span><span class="n">serdes</span><span class="o">.</span><span class="n">CreditDeserializer</span>
+<span class="n">mp</span><span class="o">.</span><span class="n">messaging</span><span class="o">.</span><span class="n">incoming</span><span class="o">.</span><span class="n">creditresponse</span><span class="o">.</span><span class="n">interceptor</span><span class="o">.</span><span class="n">classes</span><span class="o">=</span><span class="n">io</span><span class="o">.</span><span class="n">opentracing</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">kafka</span><span class="o">.</span><span class="n">TracingConsumerInterceptor</span>
+
+<span class="c1"># Tracing configuration</span>
+<span class="n">quarkus</span><span class="o">.</span><span class="n">jaeger</span><span class="o">.</span><span class="n">service</span><span class="o">-</span><span class="n">name</span><span class="o">=</span><span class="n">order</span><span class="o">-</span><span class="n">service</span>
+</pre></div>
+</div>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><p>Debezium Connector</p></li>
+</ol>
+<blockquote>
+<div><p>DebeziumのKafka Connectorについてどのように動いているか確認する。この設定は３つのサービスで類似であるためOrderサービス向けの設定ファイルであるregister-order-connector.jsonだけ見てみると、以下のようになっている。</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">register</span><span class="o">-</span><span class="n">order</span><span class="o">-</span><span class="n">connector</span><span class="o">.</span><span class="n">json</span>
+<span class="p">{</span>
+  <span class="s2">&quot;connector.class&quot;</span><span class="p">:</span> <span class="s2">&quot;io.debezium.connector.postgresql.PostgresConnector&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;tasks.max&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;database.hostname&quot;</span><span class="p">:</span> <span class="s2">&quot;order-db&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;database.port&quot;</span><span class="p">:</span> <span class="s2">&quot;5432&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;database.user&quot;</span><span class="p">:</span> <span class="s2">&quot;orderuser&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;database.password&quot;</span><span class="p">:</span> <span class="s2">&quot;orderpw&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;database.dbname&quot;</span> <span class="p">:</span> <span class="s2">&quot;orderdb&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;database.server.name&quot;</span><span class="p">:</span> <span class="s2">&quot;dbserver1&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;schema.include.list&quot;</span><span class="p">:</span> <span class="s2">&quot;purchaseorder&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;table.include.list&quot;</span> <span class="p">:</span> <span class="s2">&quot;purchaseorder.outboxevent&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;tombstones.on.delete&quot;</span> <span class="p">:</span> <span class="s2">&quot;false&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;key.converter&quot;</span><span class="p">:</span> <span class="s2">&quot;org.apache.kafka.connect.storage.StringConverter&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;value.converter&quot;</span><span class="p">:</span> <span class="s2">&quot;org.apache.kafka.connect.storage.StringConverter&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;transforms&quot;</span> <span class="p">:</span> <span class="s2">&quot;saga&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;transforms.saga.type&quot;</span> <span class="p">:</span> <span class="s2">&quot;io.debezium.transforms.outbox.EventRouter&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;transforms.saga.route.topic.replacement&quot;</span> <span class="p">:</span> <span class="s2">&quot;$</span><span class="si">{routedByValue}</span><span class="s2">.request&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;poll.interval.ms&quot;</span><span class="p">:</span> <span class="s2">&quot;100&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>ポーリングするDBへのアクセス情報やKafka Connectorとしての設定情報が書かれている。注目する点は、Produce先となるKafkaのトピック名である。${routedByValue}となっており、これはoutboxテーブルのaggregateTypeで変数指定され、outboxへINSERTされたデータの内容によってProduceされるKafkaへのトピックが変わる。</p>
 </div></blockquote>
 </section>
 </section>
@@ -67,6 +175,9 @@
 <li class="toctree-l1"><a class="reference internal" href="../Kafka/index.html">Apache Kafka</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Debezium</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#id1">1．Debeziumとは</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">2. 特徴</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rdb-debezium-kafka">3. RDB＋Debezium＋Kafka</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">4．サンプル構築</a></li>
 </ul>
 </li>
 </ul>

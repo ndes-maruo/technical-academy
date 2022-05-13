@@ -65,7 +65,7 @@
 </div></blockquote>
 </section>
 <section id="id2">
-<h2>3.システム構成<a class="headerlink" href="#id2" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<h2>3. システム構成<a class="headerlink" href="#id2" title="このヘッドラインへのパーマリンク">¶</a></h2>
 <p>Kafkaの全体アーキテクチャを以下に示す。</p>
 <blockquote>
 <div><a class="reference internal image-reference" href="../_images/env.png"><img alt="../_images/env.png" src="../_images/env.png" style="width: 749.0px; height: 355.0px;" /></a>
@@ -75,7 +75,7 @@
 <p>Topicに書き込んだデータはBrokerのディスクに保存され、読み出されてもすぐには削除されない。そのため、同じTopicのデータを複数のアプリケーションから読み出すことができる。一定期間が経過したRecordや、Partitionの最大容量を超えた分のRecordは自動的に削除される。また、Partition 内のRecordはBroker間で複製されるため、一部のBrokerノードに障害が発生してもRecordが失われにくい仕組みになっている。</p>
 </section>
 <section id="id3">
-<h2>4.データ管理<a class="headerlink" href="#id3" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<h2>4. データ管理<a class="headerlink" href="#id3" title="このヘッドラインへのパーマリンク">¶</a></h2>
 <p>Kafkaの論理/物理データ構造とその管理方法について説明する。</p>
 <section id="id4">
 <h3>論理データ構造とデータ複製<a class="headerlink" href="#id4" title="このヘッドラインへのパーマリンク">¶</a></h3>
@@ -198,8 +198,8 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Apache Kafka</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#id1">1．Apache Kafkaとは</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kafka">2．Kafkaのユースケース</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#id2">3.システム構成</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#id3">4.データ管理</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">3. システム構成</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">4. データ管理</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../Debezium/index.html">Debezium</a></li>
